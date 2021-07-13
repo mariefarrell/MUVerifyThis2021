@@ -16,6 +16,7 @@ class Ref {
         ensures ValidLL()
         ensures ValidBST()
         ensures SortedLL()
+        ensures fresh(Repr)
     {
         this.data := data;
         next := null;
@@ -157,13 +158,14 @@ method stitchTree(ref: Ref, tree: Ref?)
     modifies ref
     requires ref.ValidLL()
     requires tree == null || tree.ValidBST()
+    ensures ref.Repr == old(ref.Repr)
 {
     ref.prev := tree;
 }
 
 method size(ref: Ref?) returns (count: nat)
     requires ref == null || ref.ValidLL()
-
+    ensures ref != null ==> ref.Repr == old(ref.Repr)
     ensures ref == null ==> count == 0
     ensures ref != null ==> count == |ref.Contents|
     decreases if ref != null then ref.Repr else {}
@@ -186,6 +188,12 @@ method dll2bst(head: Ref?) returns (root: Ref?)
     root, right := dll2bstrec(head, n);
 }
 
+function nullcheck(ref: Ref?):set<object>
+reads ref
+{
+    if ref == null then {} else ref.Repr
+} 
+
 method dll2bstrec(head: Ref?, n: nat) returns (root: Ref?, right: Ref?)
     modifies head, if head != null then head.Repr else {}
     requires head == null || (head.ValidRef() && head.ValidLL() && head.SortedLL())
@@ -194,6 +202,8 @@ method dll2bstrec(head: Ref?, n: nat) returns (root: Ref?, right: Ref?)
     ensures head != null ==>
         (n == |head.Contents| ==> right == null &&
         n < |head.Contents| ==> right != null)
+    ensures !(fresh(root))
+    ensures nullcheck(head) == nullcheck(root) + nullcheck(right)
     decreases n
 {
     if n > 0 {
@@ -201,8 +211,6 @@ method dll2bstrec(head: Ref?, n: nat) returns (root: Ref?, right: Ref?)
         left, root := dll2bstrec(head, n/2);
         assert left == null || left.ValidBST();
         assert root == null || root.ValidLL();
-        assert root != null;
-        assert root.ValidLL();
         root.prev := left;
 
         var temp: Ref?;
